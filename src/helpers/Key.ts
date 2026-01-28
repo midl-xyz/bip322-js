@@ -19,13 +19,13 @@ class Key {
      * @returns A 32-byte buffer of the x-only public key.
      * @throws If the public key is neither 32-byte nor 33-byte long
      */
-    public static toXOnly(publicKey: Buffer) {
+    public static toXOnly(publicKey: Uint8Array): Uint8Array {
         // Throw if the input key length is invalid
         if (publicKey.length !== 32 && publicKey.length !== 33) {
             throw new Error("Invalid public key length");
         }
         // Otherwise, return the key (with the first byte removed if it is 33-byte long)
-        return Buffer.from(publicKey.length === 32 ? publicKey : publicKey.subarray(1, 33));
+        return publicKey.length === 32 ? publicKey : publicKey.subarray(1, 33);
     }
 
     /**
@@ -38,20 +38,20 @@ class Key {
      * The steps involved in the process are:
      * 1. Parse the uncompressed public key bytes into a secp256k1 Point object.
      * 2. Serialize the Point into its compressed binary format.
-     * 3. Return the compressed public key as a Buffer object.
+     * 3. Return the compressed public key as a Uint8Array object.
      * 
-     * @param uncompressedPublicKey A Buffer containing the uncompressed public key.
-     * @return Buffer Returns a Buffer containing the compressed public key.
+     * @param uncompressedPublicKey A Uint8Array containing the uncompressed public key.
+     * @return Uint8Array Returns a Uint8Array containing the compressed public key.
      * @throws Error Throws an error if the provided public key cannot be compressed,
      * typically indicating that the key is not valid.
      */
-    public static compressPublicKey(uncompressedPublicKey: Buffer): Buffer {
+    public static compressPublicKey(uncompressedPublicKey: Uint8Array): Uint8Array {
         // Try to compress the provided public key
         try {
             // Create a key pair from the uncompressed public key buffer
-            const point = secp256k1.Point.fromBytes(Buffer.from(uncompressedPublicKey));
-            // Get the compressed public key as a Buffer
-            const compressedPublicKey = Buffer.from(point.toBytes(true));
+            const point = secp256k1.Point.fromBytes(uncompressedPublicKey);
+            // Get the compressed public key as a Uint8Array
+            const compressedPublicKey = point.toBytes(true);
             return compressedPublicKey;
         }
         catch (err) {
@@ -68,22 +68,22 @@ class Key {
      * The function operates as follows:
      * 1. Parse the compressed public key bytes into a secp256k1 Point object.
      * 2. Serialize the Point into its uncompressed binary format.
-     * 3. Return the uncompressed public key as a Buffer object.
+     * 3. Return the uncompressed public key as a Uint8Array object.
      * If the compressed public key provided is invalid and cannot be uncompressed, 
      * the method will throw an error with a descriptive message.
      * 
-     * @param compressedPublicKey A Buffer containing the compressed public key.
-     * @return Buffer The uncompressed public key as a Buffer.
+     * @param compressedPublicKey A Uint8Array containing the compressed public key.
+     * @return Uint8Array The uncompressed public key as a Uint8Array.
      * @throws Error Throws an error if the provided public key cannot be uncompressed,
      * typically indicating that the key is not valid.
      */
-    public static uncompressPublicKey(compressedPublicKey: Buffer): Buffer {
+    public static uncompressPublicKey(compressedPublicKey: Uint8Array): Uint8Array {
         // Try to uncompress the provided public key
         try {
             // Create a key pair from the compressed public key buffer
-            const point = secp256k1.Point.fromBytes(Buffer.from(compressedPublicKey));
-            // Get the compressed public key as a Buffer
-            const uncompressedPublicKey = Buffer.from(point.toBytes(false)); // false = uncompressed
+            const point = secp256k1.Point.fromBytes(compressedPublicKey);
+            // Get the compressed public key as a Uint8Array
+            const uncompressedPublicKey = point.toBytes(false); // false = uncompressed
             return uncompressedPublicKey;
         }
         catch (err) {

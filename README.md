@@ -74,6 +74,7 @@ Note that this behavior does not exist in actual BIP-322 signature due to how BI
 ```js
 // Import modules that are useful to you
 const { BIP322, Signer, Verifier } = require('bip322-js');
+const { hexToBytes } = require('@noble/hashes/utils');
 
 // Signing a BIP-322 signature with a private key
 const privateKey = 'L3VFeEujGtevx9w18HD1fhRbCH67Az2dpCymeRE1SoPK6XQtaN2k';
@@ -99,7 +100,7 @@ const validityP2SH = Verifier.verifySignature(nestedSegwitAddress, message, sign
 console.log({ validity, validityTestnet, validityRegtest, validityP2TR, validityP2SH }); // True
 
 // You can also get the raw unsigned BIP-322 toSpend and toSign transaction directly
-const scriptPubKey = Buffer.from('00142b05d564e6a7a33c087f16e0f730d1440123799d', 'hex');
+const scriptPubKey = hexToBytes('00142b05d564e6a7a33c087f16e0f730d1440123799d');
 const toSpend = BIP322.buildToSpendTx(message, scriptPubKey); // bitcoin.Transaction
 const toSpendTxId = toSpend.getId();
 const toSign = BIP322.buildToSignTx(toSpendTxId, scriptPubKey); // bitcoin.Psbt

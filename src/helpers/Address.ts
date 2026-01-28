@@ -80,7 +80,7 @@ class Address {
      * @param witness Witness data associated with the toSign BIP-322 transaction
      * @returns True if the provided witness stack correspond to a valid P2WPKH address, false if otherwise
      */
-    public static isP2WPKHWitness(witness: Buffer[]) {
+    public static isP2WPKHWitness(witness: Uint8Array[]) {
         // Check whether the witness stack is as expected for a P2WPKH address
         // It should contain exactly two items, with the second item being a public key with 33 bytes, and the first byte must be either 0x02/0x03
         if (witness.length === 2 && witness[1].byteLength === 33 && (witness[1][0] === 0x02 || witness[1][0] === 0x03)) {
@@ -96,7 +96,7 @@ class Address {
      * @param witness Witness data associated with the toSign BIP-322 transaction
      * @returns True if the provided address and witness stack correspond to a valid single-key-spend P2TR address, false if otherwise
      */
-    public static isSingleKeyP2TRWitness(witness: Buffer[]) {
+    public static isSingleKeyP2TRWitness(witness: Uint8Array[]) {
         // Check whether the witness stack is as expected for a single-key-spend taproot address
         // It should contain exactly one items which is the signature for the transaction
         if (witness.length === 1) {
@@ -137,7 +137,7 @@ class Address {
      * @returns Script public key of the given Bitcoin address
      * @throws Error when the provided address is not a valid Bitcoin address
      */
-    public static convertAdressToScriptPubkey(address: string) {
+    public static convertAdressToScriptPubkey(address: string): Uint8Array {
         if (address[0] === '1' || address[0] === 'm' || address[0] === 'n') {
             // P2PKH address
             const output = bitcoin.payments.p2pkh({
@@ -147,7 +147,7 @@ class Address {
             if (!output) {
                 throw new Error("Unable to derive scriptPubKey for P2PKH address.");
             }
-            return Buffer.from(output);
+            return output;
         }
         else if (address[0] === '3' || address[0] === '2') {
             // P2SH address
@@ -158,7 +158,7 @@ class Address {
             if (!output) {
                 throw new Error("Unable to derive scriptPubKey for P2SH address.");
             }
-            return Buffer.from(output);
+            return output;
         }
         else if (/^(bc1q|tb1q|bcrt1q)/.test(address)) {
             // P2WPKH or P2WSH address
@@ -171,7 +171,7 @@ class Address {
                 if (!output) {
                     throw new Error("Unable to derive scriptPubKey for P2WPKH address.");
                 }
-                return Buffer.from(output);
+                return output;
             }
             else if (address.length === 62 || (address.includes('bcrt1q') && address.length === 64)) {
                 // P2WSH address
@@ -182,7 +182,7 @@ class Address {
                 if (!output) {
                     throw new Error("Unable to derive scriptPubKey for P2WSH address.");
                 }
-                return Buffer.from(output);
+                return output;
             }
         }
         else if (/^(bc1p|tb1p|bcrt1p)/.test(address)) {
@@ -195,7 +195,7 @@ class Address {
                 if (!output) {
                     throw new Error("Unable to derive scriptPubKey for P2TR address.");
                 }
-                return Buffer.from(output);
+                return output;
             }
         }
         throw new Error("Unknown address type");
@@ -207,7 +207,7 @@ class Address {
      * @param addressType Bitcoin address type to be derived, must be either 'p2pkh', 'p2sh-p2wpkh', 'p2wpkh', or 'p2tr'
      * @returns Bitcoin address that correspond to the given public key in both mainnet and testnet
      */
-    public static convertPubKeyIntoAddress(publicKey: Buffer, addressType: 'p2pkh' | 'p2sh-p2wpkh' | 'p2wpkh' | 'p2tr') {
+    public static convertPubKeyIntoAddress(publicKey: Uint8Array, addressType: 'p2pkh' | 'p2sh-p2wpkh' | 'p2wpkh' | 'p2tr') {
         switch (addressType) {
             case 'p2pkh':
                 return {

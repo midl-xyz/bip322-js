@@ -1,6 +1,7 @@
 // Import dependencies
 import { Hash } from "fast-sha256";
 import * as bitcoin from 'bitcoinjs-lib';
+import BufferUtil from './helpers/BufferUtil';
 
 /**
  * Class that handles BIP-322 related operations.
@@ -9,7 +10,7 @@ import * as bitcoin from 'bitcoinjs-lib';
 class BIP322 {
 
     // BIP322 message tag
-    static TAG = Buffer.from("BIP0322-signed-message");
+    static TAG = BufferUtil.fromUtf8("BIP0322-signed-message");
 
     /**
      * Compute the message hash as specified in the BIP-322.
@@ -18,7 +19,7 @@ class BIP322 {
      * @param message Message to be hashed
      * @returns Hashed message
      */
-    public static hashMessage(message: string | Buffer) {
+    public static hashMessage(message: string | Uint8Array) {
         // Compute the message hash - SHA256(SHA256(tag) || SHA256(tag) || message)
         const tagHasher = new Hash();
         tagHasher.update(this.TAG);
@@ -26,7 +27,8 @@ class BIP322 {
         const messageHasher = new Hash();
         messageHasher.update(tagHash);
         messageHasher.update(tagHash);
-        messageHasher.update(Buffer.from(message));
+        const messageBytes = typeof message === 'string' ? BufferUtil.fromUtf8(message) : message;
+        messageHasher.update(messageBytes);
         const messageHash = messageHasher.digest();
         return messageHash;
     }
@@ -37,7 +39,7 @@ class BIP322 {
      * @param scriptPublicKey The script public key for the signing wallet
      * @returns Bitcoin transaction that correspond to the to_spend transaction
      */
-    public static buildToSpendTx(message: string | Buffer, scriptPublicKey: Buffer) {
+    public static buildToSpendTx(message: string | Uint8Array, scriptPublicKey: Uint8Array) {
         // Create PSBT object for constructing the transaction
         const psbt = new bitcoin.Psbt();
         // Set default value for nVersion and nLockTime
@@ -55,8 +57,8 @@ class BIP322 {
             hash: '0'.repeat(64), // vin[0].prevout.hash = 0000...000
             index: 0xFFFFFFFF, // vin[0].prevout.n = 0xFFFFFFFF
             sequence: 0, // vin[0].nSequence = 0
-            finalScriptSig: Buffer.from(scriptSig), // vin[0].scriptSig = OP_0 PUSH32[ message_hash ]
-            witnessScript: Buffer.from([]) // vin[0].scriptWitness = []
+            finalScriptSig: scriptSig, // vin[0].scriptSig = OP_0 PUSH32[ message_hash ]
+            witnessScript: new Uint8Array(0) // vin[0].scriptWitness = []
         });
         // Set the output
         psbt.addOutput({
@@ -75,7 +77,7 @@ class BIP322 {
      * @param tapInternalKey Used to set the taproot internal public key of a taproot signing address when provided, default to undefined
      * @returns Ready-to-be-signed bitcoinjs.Psbt transaction
      */
-    public static buildToSignTx(toSpendTxId: string, witnessScript: Buffer, isRedeemScript: boolean = false, tapInternalKey: Buffer = undefined) {
+    public static buildToSignTx(toSpendTxId: string, witnessScript: Uint8Array, isRedeemScript: boolean = false, tapInternalKey: Uint8Array | undefined = undefined) {
         // Create PSBT object for constructing the transaction
         const psbt = new bitcoin.Psbt();
         // Set default value for nVersion and nLockTime
@@ -106,7 +108,7 @@ class BIP322 {
         // Set the output
         psbt.addOutput({
             value: 0n, // vout[0].nValue = 0
-            script: Buffer.from([0x6a]) // vout[0].scriptPubKey = OP_RETURN
+            script: new Uint8Array([0x6a]) // vout[0].scriptPubKey = OP_RETURN
         });
         return psbt;
     }
@@ -122,7 +124,7 @@ class BIP322 {
         // Check if the witness data is present
         if (witness) {
             // Return the base-64 encoded witness stack
-            return Buffer.from(witness).toString('base64');
+            return BufferUtil.toBase64(witness);
         }
         else {
             throw new Error('Cannot encode empty witness stack.');

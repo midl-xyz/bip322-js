@@ -21,7 +21,7 @@ class Verifier {
      * @returns True if the provided signature is a valid BIP-322 signature for the given message and address, false if otherwise
      * @throws If the provided signature fails basic validation, or if unsupported address and signature are provided
      */
-    public static verifySignature(signerAddress: string, message: string | Buffer, signatureBase64: string, useStrictVerification: boolean = false) {
+    public static verifySignature(signerAddress: string, message: string | Uint8Array, signatureBase64: string, useStrictVerification: boolean = false) {
         // Check whether the given signerAddress is valid
         if (!Address.isValidBitcoinAddress(signerAddress)) {
             throw new Error("Invalid Bitcoin address is provided.");
@@ -38,7 +38,7 @@ class Verifier {
         const toSignTx = BIP322.buildToSignTx(toSpendTx.getId(), scriptPubKey);
         // Add the witness stack into the toSignTx
         toSignTx.updateInput(0, {
-            finalScriptWitness: Buffer.from(signatureBase64, 'base64')
+            finalScriptWitness: BufferUtil.fromBase64(signatureBase64)
         });
         // Obtain the signature within the witness components
         const witness = toSignTx.extractTransaction().ins[0].witness;
@@ -50,7 +50,7 @@ class Verifier {
             const publicKey = witnessBuffers[1];
             const { signature } = decodeScriptSignature(encodedSignature);
             // Compute OP_HASH160(publicKey)
-            const hashedPubkey = Buffer.from(bitcoin.crypto.hash160(publicKey));
+            const hashedPubkey = bitcoin.crypto.hash160(publicKey);
             // Common path variable
             let hashToSign: Uint8Array; // Hash expected to be signed by the signing address
             if (Address.isP2SH(signerAddress)) {
@@ -58,13 +58,13 @@ class Verifier {
                 // Compute the hash that correspond to the toSignTx
                 hashToSign = this.getHashForSigP2SHInP2WPKH(toSignTx, hashedPubkey);
                 // The original locking script for P2SH-P2WPKH is OP_0 <PubKeyHash>
-                const lockingScript = Buffer.concat([ Buffer.from([0x00, 0x14]), hashedPubkey ]);
+                const lockingScript = BufferUtil.concat(new Uint8Array([0x00, 0x14]), hashedPubkey);
                 // Compute OP_HASH160(lockingScript)
-                const hashedLockingScript = Buffer.from(bitcoin.crypto.hash160(lockingScript));
+                const hashedLockingScript = bitcoin.crypto.hash160(lockingScript);
                 // For nested segwit (P2SH-P2WPKH) address, the hashed locking script is located from the 3rd byte to the last 2nd byte as OP_HASH160 <HASH> OP_EQUAL
                 const hashedLockingScriptInScriptPubKey = BufferUtil.ensureBuffer(scriptPubKey.subarray(2, -1));
                 // Check if the P2SH locking script OP_HASH160 <HASH> OP_EQUAL is satisified
-                if (Buffer.compare(hashedLockingScript, hashedLockingScriptInScriptPubKey) !== 0) {
+                if (BufferUtil.compare(hashedLockingScript, hashedLockingScriptInScriptPubKey) !== 0) {
                     return false; // Reject signature if the hashed locking script is different from the hashed locking script in the scriptPubKey
                 }
             }
@@ -75,7 +75,7 @@ class Verifier {
                 // For native segwit address, the hashed public key is located from the 3rd to the end as OP_0 <HASH>
                 const hashedPubkeyInScriptPubkey = BufferUtil.ensureBuffer(scriptPubKey.subarray(2));
                 // Check if OP_HASH160(publicKey) === hashedPubkeyInScriptPubkey
-                if (Buffer.compare(hashedPubkey, hashedPubkeyInScriptPubkey) !== 0) {
+                if (BufferUtil.compare(hashedPubkey, hashedPubkeyInScriptPubkey) !== 0) {
                     return false; // Reject signature if the hashed public key did not match
                 }
             }
@@ -92,7 +92,7 @@ class Verifier {
             // Compute the hash to be signed by the signing address
             // Reference: https://github.com/bitcoin/bips/blob/master/bip-0341.mediawiki#user-content-Taproot_key_path_spending_signature_validation
             let hashToSign: Uint8Array;
-            let signature: Buffer;
+            let signature: Uint8Array;
             if (encodedSignature.byteLength === 64) {
                 // If a BIP-341 signature is 64 bytes, the signature is signed using SIGHASH_DEFAULT 0x00 
                 hashToSign = this.getHashForSigP2TR(toSignTx, 0x00);
@@ -127,15 +127,15 @@ class Verifier {
      * @returns True if the provided signature is a valid BIP-137 signature for the given message and address, false if otherwise
      * @throws If the provided signature fails basic validation, or if unsupported address and signature are provided
      */
-    private static verifyBIP137Signature(signerAddress: string, message: string | Buffer, signatureBase64: string, useStrictVerification: boolean) {
+    private static verifyBIP137Signature(signerAddress: string, message: string | Uint8Array, signatureBase64: string, useStrictVerification: boolean) {
         if (useStrictVerification) {
             return this.bitcoinMessageVerifyWrap(message, signerAddress, signatureBase64);
         }
         // Recover the public key associated with the signature
         const publicKeySignedRaw = BIP137.derivePubKey(message, signatureBase64);
         // Compress and uncompress the public key if necessary
-        let publicKeySignedUncompressed: Buffer;
-        let publicKeySigned: Buffer;
+        let publicKeySignedUncompressed: Uint8Array;
+        let publicKeySigned: Uint8Array;
         if (publicKeySignedRaw.byteLength === 65) {
             publicKeySignedUncompressed = publicKeySignedRaw; // The key recovered is an uncompressed key
             publicKeySigned = Key.compressPublicKey(publicKeySignedRaw);
@@ -228,7 +228,7 @@ class Verifier {
      * @param signatureBase64 The Base64 encoded signature corresponding to the message.
      * @return boolean Returns true if the message is successfully verified, otherwise false.
      */
-    private static bitcoinMessageVerifyWrap(message: string | Buffer, address: string, signatureBase64: string) {
+    private static bitcoinMessageVerifyWrap(message: string | Uint8Array, address: string, signatureBase64: string) {
         try {
             return BitcoinMessage.verify(message, address, signatureBase64);
         } 
@@ -267,7 +267,7 @@ class Verifier {
      * @param hashedPubkey Hashed public key of the signing address
      * @returns Computed transaction hash that requires signing
      */
-    private static getHashForSigP2SHInP2WPKH(toSignTx: bitcoin.Psbt, hashedPubkey: Buffer): Uint8Array {
+    private static getHashForSigP2SHInP2WPKH(toSignTx: bitcoin.Psbt, hashedPubkey: Uint8Array): Uint8Array {
         // Create a signing script to unlock the P2WPKH output based on the P2PKH template
         // Reference: https://github.com/bitcoinjs/bitcoinjs-lib/blob/1a9119b53bcea4b83a6aa8b948f0e6370209b1b4/ts_src/psbt.ts#L1654
         // Like P2WPKH, the hash for deriving the meaningfulScript for a P2SH-P2WPKH transaction is its public key hash

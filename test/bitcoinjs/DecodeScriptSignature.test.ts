@@ -27,13 +27,13 @@ describe('Decode Script Signatures', () => {
         );
     }
 
-    function toRaw(signature: Buffer): {
+    function toRaw(signature: Uint8Array): {
         r: string;
         s: string;
     } {
         return {
-            r: signature.slice(0, 32).toString('hex'),
-            s: signature.slice(32, 64).toString('hex')
+            r: Buffer.from(signature.slice(0, 32)).toString('hex'),
+            s: Buffer.from(signature.slice(32, 64)).toString('hex')
         };
     }
 

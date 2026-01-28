@@ -1,7 +1,7 @@
 // Import dependencies
 import BIP322 from "./BIP322";
 import ECPairFactory from 'ecpair';
-import { Address, Key } from "./helpers";
+import { Address, Key, BufferUtil } from "./helpers";
 import * as bitcoin from 'bitcoinjs-lib';
 import ecc from '@bitcoinerlab/secp256k1';
 import { BitcoinMessage } from './helpers';
@@ -21,11 +21,11 @@ class Signer {
      * @param message message_challenge to be signed by the address 
      * @returns BIP-322 simple signature, encoded in base-64
      */
-    public static sign(privateKey: string, address: string, message: string | Buffer): string {
+    public static sign(privateKey: string, address: string, message: string | Uint8Array): string {
         // Initialize private key used to sign the transaction
         const ECPair = ECPairFactory(ecc);
         let signer = ECPair.fromWIF(privateKey, [bitcoin.networks.bitcoin, bitcoin.networks.testnet, bitcoin.networks.regtest]);
-        const signerPublicKey = Buffer.from(signer.publicKey);
+        const signerPublicKey = BufferUtil.ensureBuffer(signer.publicKey);
         // Check if the private key can sign message for the given address
         if (!this.checkPubKeyCorrespondToAddress(signerPublicKey, address)) {
             throw new Error(`Invalid private key provided for signing message for ${address}.`);
@@ -36,7 +36,7 @@ class Signer {
         // Handle legacy P2PKH signature
         if (Address.isP2PKH(address)) {
             // For P2PKH address, sign a legacy signature
-            return BitcoinMessage.sign(message, Buffer.from(signer.privateKey), signer.compressed).toString('base64');
+            return BufferUtil.toBase64(BitcoinMessage.sign(message, BufferUtil.ensureBuffer(signer.privateKey), signer.compressed));
         }
         // Convert address into corresponding script pubkey
         const scriptPubKey = Address.convertAdressToScriptPubkey(address);
@@ -54,7 +54,7 @@ class Signer {
             if (!redeemScript) {
                 throw new Error('Unable to derive redeemScript for P2SH-P2WPKH address.');
             }
-            toSignTx = BIP322.buildToSignTx(toSpendTx.getId(), Buffer.from(redeemScript), true);
+            toSignTx = BIP322.buildToSignTx(toSpendTx.getId(), redeemScript, true);
         }
         else if (Address.isP2WPKH(address)) {
             // P2WPKH signing path
@@ -67,7 +67,7 @@ class Signer {
             // Tweak the private key for signing, since the output and address uses tweaked key
             // Reference: https://github.com/bitcoinjs/bitcoinjs-lib/blob/1a9119b53bcea4b83a6aa8b948f0e6370209b1b4/test/integration/taproot.spec.ts#L55
             signer = signer.tweak(
-                Buffer.from(bitcoin.crypto.taggedHash('TapTweak', internalPublicKey))
+                bitcoin.crypto.taggedHash('TapTweak', internalPublicKey)
             );
             // Draft a toSign transaction that spends toSpend transaction
             toSignTx = BIP322.buildToSignTx(toSpendTx.getId(), scriptPubKey, false, internalPublicKey);
@@ -88,7 +88,7 @@ class Signer {
      * @param claimedAddress Address claimed to be derived based on the provided public key
      * @returns True if the claimedAddress can be derived by the provided publicKey, false if otherwise
      */
-    private static checkPubKeyCorrespondToAddress(publicKey: Buffer, claimedAddress: string) {
+    private static checkPubKeyCorrespondToAddress(publicKey: Uint8Array, claimedAddress: string) {
         // Derive the same address type from the provided public key
         let derivedAddresses: { mainnet: string, testnet: string, regtest: string };
         if (Address.isP2PKH(claimedAddress)) {
