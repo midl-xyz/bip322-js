@@ -15,16 +15,16 @@ class Witness {
      * @param witnesses Array of witness data
      * @returns Base-64 encoded witness data
      */
-    public static serialize(witnesses: Uint8Array[]) {
+    public static serialize(witnesses: Uint8Array[]): string {
         // The first element to be included is the length of the witness array as VarInt
         let witnessStack = VarInt.encode(witnesses.length);
         // Then, for each witness array,
         witnesses.forEach((witness) => {
             // Append each witness as a VarStr to the witness stack
-            witnessStack = Buffer.concat([ witnessStack, VarStr.encode(Buffer.from(witness)) ]);
+            witnessStack = BufferUtil.concat(witnessStack, VarStr.encode(witness));
         });
         // Return the base-64 encoded witness stack
-        return witnessStack.toString('base64');
+        return BufferUtil.toBase64(witnessStack);
     }
 
     /**
@@ -34,14 +34,14 @@ class Witness {
      * @param encodedWitness Base-64 encoded witness data, or encoded witness data that have already been decoded
      * @returns Decoded witness data
      */
-    public static deserialize(encodedWitness: string | Buffer) {
+    public static deserialize(encodedWitness: string | Uint8Array): Uint8Array[] {
         // Store the decoded witness stack
-        let witnessDecoded: Array<Buffer> = [];
+        const witnessDecoded: Array<Uint8Array> = [];
         // Preprocess the encodedWitness if needed
-        let witnessToDecode: Buffer;
+        let witnessToDecode: Uint8Array;
         if (typeof encodedWitness === 'string') {
             // Decode the encoded witness if it is a string (assuming it is encoded using base-64)
-            witnessToDecode = Buffer.from(encodedWitness, 'base64');
+            witnessToDecode = BufferUtil.fromBase64(encodedWitness);
         }
         else {
             witnessToDecode = encodedWitness;
@@ -52,7 +52,7 @@ class Witness {
         const varIntLength = VarInt.encode(witnessCount).byteLength;
         witnessToDecode = BufferUtil.ensureBuffer(witnessToDecode.subarray(varIntLength));
         // Loop for each witness encoded
-        for (let i=0; i<witnessCount; i++) {
+        for (let i = 0; i < witnessCount; i++) {
             // Read a VarStr from the remaining buffer
             const witness = VarStr.decode(witnessToDecode);
             // Append the decoded witness to witnessDecoded

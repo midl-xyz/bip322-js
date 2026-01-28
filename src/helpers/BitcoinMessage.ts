@@ -1,5 +1,6 @@
 import BIP137 from './BIP137';
 import VarInt from './VarInt';
+import BufferUtil from './BufferUtil';
 import { sha256 } from '@noble/hashes/sha2.js';
 import { secp256k1 } from '@noble/curves/secp256k1.js';
 import { payments, address as bjsAddress, networks } from 'bitcoinjs-lib';
@@ -7,7 +8,7 @@ import { payments, address as bjsAddress, networks } from 'bitcoinjs-lib';
 // Mimic bitcoinjs-message options
 interface SignOptions {
     segwitType?: 'p2sh(p2wpkh)' | 'p2wpkh';
-    extraEntropy?: Buffer;
+    extraEntropy?: Uint8Array;
 }
 
 /**
@@ -36,9 +37,9 @@ class BitcoinMessage {
      * @param privateKey The 32-byte private key buffer used for signing.
      * @param compressed Boolean indicating if the corresponding public key is compressed.
      * @param options Optional parameters including 'segwitType' ('p2sh(p2wpkh)' or 'p2wpkh') and 'extraEntropy'.
-     * @returns A Buffer containing the 65-byte BIP-137 signature.
+     * @returns A Uint8Array containing the 65-byte BIP-137 signature.
      */
-    public static sign(message: string | Buffer, privateKey: Buffer, compressed: boolean, options?: SignOptions): Buffer {
+    public static sign(message: string | Uint8Array, privateKey: Uint8Array, compressed: boolean, options?: SignOptions): Uint8Array {
         const hash = this.magicHash(message);
         
         // 1. Sign (Deterministic or with extra entropy)
@@ -51,8 +52,8 @@ class BitcoinMessage {
 
         let r: bigint, s: bigint, recovery: number;
 
-        r = BigInt('0x' + Buffer.from(sig.subarray(0, 32)).toString('hex'));
-        s = BigInt('0x' + Buffer.from(sig.subarray(32, 64)).toString('hex'));
+        r = BigInt('0x' + BufferUtil.toHex(sig.subarray(0, 32)));
+        s = BigInt('0x' + BufferUtil.toHex(sig.subarray(32, 64)));
         
         // Recalculate recovery ID
         recovery = 0;
@@ -60,7 +61,7 @@ class BitcoinMessage {
         for (let i = 0; i < 4; i++) {
             try {
                 const rec = new secp256k1.Signature(r, s).addRecoveryBit(i).recoverPublicKey(hash);
-                if (Buffer.from(rec.toBytes(true)).equals(Buffer.from(pubKey))) {
+                if (BufferUtil.equals(rec.toBytes(true), pubKey)) {
                     recovery = i;
                     break;
                 }
@@ -89,7 +90,7 @@ class BitcoinMessage {
         }
 
         // 3. Combine [1 byte of header data][32 bytes for r value][32 bytes for s value] into BIP-137 signature
-        return Buffer.concat([Buffer.from([header]), Buffer.from(sig)]);
+        return BufferUtil.concat(new Uint8Array([header]), sig);
     }
 
     /**
@@ -107,14 +108,14 @@ class BitcoinMessage {
      * 4. Derive the expected output script from the recovered public key based on the detected type.
      * 5. Compare the derived script with the target address script.
      *
-     * @param message The message that was signed (string or Buffer).
+     * @param message The message that was signed (string or buffer).
      * @param address The Bitcoin address (Legacy, Segwit, or Bech32) that supposedly signed the message.
      * @param signatureBase64 The Base64 encoded signature string.
      * @returns boolean Returns true if the signature is valid for the given message and address, false otherwise.
      * @throws Error if unexpected error is encountered (e.g., unexpected object being passed as an message)
      */
-    public static verify(message: string | Buffer, address: string, signatureBase64: string): boolean {
-        const signatureBuffer = Buffer.from(signatureBase64, 'base64');
+    public static verify(message: string | Uint8Array, address: string, signatureBase64: string): boolean {
+        const signatureBuffer = BufferUtil.fromBase64(signatureBase64);
 
         if (signatureBuffer.length !== 65) return false; // Invalid BIP-137 signature
 
@@ -169,7 +170,7 @@ class BitcoinMessage {
         if (!payment.output) {
             return false;
         }
-        return Buffer.from(payment.output).equals(targetScript);
+        return BufferUtil.equals(payment.output, targetScript);
     }
 
     /**
@@ -180,15 +181,15 @@ class BitcoinMessage {
      * (hash256) on the result. This specific hashing mechanism prevents the signature from 
      * being used as a valid transaction signature on the Bitcoin network.
      *
-     * @param message The input message to be hashed (string or Buffer).
-     * @returns Buffer A 32-byte Buffer containing the double SHA-256 hash of the prefixed message.
+     * @param message The input message to be hashed (string or buffer).
+     * @returns Uint8Array A 32-byte Uint8Array containing the double SHA-256 hash of the prefixed message.
      */
-    public static magicHash(message: string | Buffer): Buffer {
-        const prefix = Buffer.from('\x18Bitcoin Signed Message:\n', 'utf8');
-        const messageBuffer = Buffer.isBuffer(message) ? message : Buffer.from(message, 'utf8');
+    public static magicHash(message: string | Uint8Array): Uint8Array {
+        const prefix = BufferUtil.fromUtf8('\x18Bitcoin Signed Message:\n');
+        const messageBuffer = typeof message === 'string' ? BufferUtil.fromUtf8(message) : message;
         const len = VarInt.encode(messageBuffer.length);
-        const buffer = Buffer.concat([prefix, len, messageBuffer]);
-        return Buffer.from(sha256(sha256(buffer)));
+        const buffer = BufferUtil.concat(prefix, len, messageBuffer);
+        return sha256(sha256(buffer));
     }
 
     /**
@@ -201,14 +202,14 @@ class BitcoinMessage {
      * networks transparently without requiring explicit network configuration from the caller.
      *
      * @param address The Bitcoin address string to convert.
-     * @returns Buffer | null The output script Buffer if the address is valid on any supported network, or null if invalid.
+     * @returns Uint8Array | null The output script bytes if the address is valid on any supported network, or null if invalid.
      */
-    private static toOutputScriptAnyNetwork(address: string): Buffer | null {
+    private static toOutputScriptAnyNetwork(address: string): Uint8Array | null {
         // List of networks to try. 
         const candidates = [networks.bitcoin, networks.testnet, networks.regtest];
         for (const network of candidates) {
             try {
-                return Buffer.from(bjsAddress.toOutputScript(address, network));
+                return bjsAddress.toOutputScript(address, network);
             } 
             catch (e) {
                 // Continue to next network if this one mismatches

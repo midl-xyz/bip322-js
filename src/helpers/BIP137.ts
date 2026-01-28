@@ -13,10 +13,10 @@ class BIP137 {
      * @param signature Base64-encoded signature to be checked
      * @returns True if the provided signature correspond to a valid BIP-137 signature, false if otherwise
      */
-    public static isBIP137Signature(signature: string) {
+    public static isBIP137Signature(signature: string | Uint8Array) {
         // Check if the provided signature satisified the format of a BIP-137 signature
-        const signatureBuffer = Buffer.from(signature, 'base64');
-        if (signatureBuffer.byteLength === 65) {
+        const signatureBytes = typeof signature === 'string' ? BufferUtil.fromBase64(signature) : BufferUtil.ensureBuffer(signature);
+        if (signatureBytes.byteLength === 65) {
             return true;
         }
         else {
@@ -30,21 +30,33 @@ class BIP137 {
      * @param signature Base-64 encoded signature to be decoded
      * @returns Public key that signs the provided signature
      */
-    public static derivePubKey(message: string | Buffer, signature: string) {
+    public static derivePubKey(message: string | Uint8Array, signature: string | Uint8Array): Uint8Array {
         // Compute the hash signed by the signer
         const messageHash = BitcoinMessage.magicHash(message);
         // Decode the provided BIP-137 signature
-        const signatureDecoded = this.decodeSignature(Buffer.from(signature, 'base64'));
+        let signatureBytes: Uint8Array;
+        if (typeof signature === 'string') {
+            try {
+                signatureBytes = BufferUtil.fromBase64(signature);
+            }
+            catch (err) {
+                throw new Error('Invalid signature length');
+            }
+        }
+        else {
+            signatureBytes = BufferUtil.ensureBuffer(signature);
+        }
+        const signatureDecoded = this.decodeSignature(signatureBytes);
         // Slice the 64-byte signature into r and s
         // Note: BIP-137 signatureDecoded.signature is 64 bytes (r + s)
-        const r = BigInt('0x' + signatureDecoded.signature.subarray(0, 32).toString('hex'));
-        const s = BigInt('0x' + signatureDecoded.signature.subarray(32, 64).toString('hex'));
+        const r = BigInt('0x' + BufferUtil.toHex(signatureDecoded.signature.subarray(0, 32)));
+        const s = BigInt('0x' + BufferUtil.toHex(signatureDecoded.signature.subarray(32, 64)));
         // Construct the Signature and add the recovery bit
         const sig = new secp256k1.Signature(r, s).addRecoveryBit(signatureDecoded.recovery);
         // 3. Recover the public key
         const point = sig.recoverPublicKey(messageHash);
-        // Convert Point -> Buffer (using the compressed flag from the decoded signature)
-        return Buffer.from(point.toBytes(signatureDecoded.compressed));
+        // Convert Point -> bytes (using the compressed flag from the decoded signature)
+        return point.toBytes(signatureDecoded.compressed);
     }
 
     /**
@@ -53,16 +65,16 @@ class BIP137 {
      * @param signature BIP-137 signature to be decoded
      * @returns Decoded BIP-137 signature
      */
-    private static decodeSignature(signature: Buffer) {
+    private static decodeSignature(signature: Uint8Array) {
         if (signature.length !== 65) throw new Error('Invalid signature length');
-        const flagByte = signature.readUInt8(0) - 27;
+        const flagByte = signature[0] - 27;
         if (flagByte > 19 || flagByte < 0) {
             throw new Error('Invalid signature parameter');
         }
         return {
             compressed: !!(flagByte & 12),
             recovery: flagByte & 3,
-            signature: BufferUtil.ensureBuffer(signature.subarray(1))
+            signature: signature.subarray(1)
         }
     }
 

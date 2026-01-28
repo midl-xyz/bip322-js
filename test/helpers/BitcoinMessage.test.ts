@@ -15,6 +15,7 @@ const { expect } = chai;
 
 // Initialize ECPair
 const ECPair = ECPairFactory(ecc);
+const toBase64 = (bytes: Uint8Array) => Buffer.from(bytes).toString('base64');
 
 describe('BitcoinMessage.sign and BitcoinMessage.verify Compatibility Test Suite', () => {
 
@@ -103,7 +104,7 @@ describe('BitcoinMessage.sign and BitcoinMessage.verify Compatibility Test Suite
                     const verifyRef = bitcoinMessage.verify(
                         message, 
                         address, 
-                        sigNew.toString('base64')
+                        toBase64(sigNew)
                     );
                     expect(verifyRef).to.be.true;
 
@@ -111,7 +112,7 @@ describe('BitcoinMessage.sign and BitcoinMessage.verify Compatibility Test Suite
                     const verifyNew = BitcoinMessage.verify(
                         message, 
                         address, 
-                        sigRef.toString('base64')
+                        toBase64(sigRef)
                     );
                     expect(verifyNew).to.be.true;
                 });
@@ -126,7 +127,7 @@ describe('BitcoinMessage.sign and BitcoinMessage.verify Compatibility Test Suite
         const address = bitcoin.payments.p2pkh({ pubkey: publicKey }).address!;
         const signature = BitcoinMessage.sign(message, privateKey, true);
         
-        const isValid = BitcoinMessage.verify("Wrong Message", address, signature.toString('base64'));
+        const isValid = BitcoinMessage.verify("Wrong Message", address, toBase64(signature));
         expect(isValid).to.be.false;
     });
 
@@ -156,7 +157,7 @@ describe('BitcoinMessage.sign and BitcoinMessage.verify Compatibility Test Suite
         it(`${testCase.name} signature should be rejected for mismatched address`, () => {
             const signature = BitcoinMessage.sign(message, privateKey, testCase.compressed, (testCase.options as any));
             addressLists.forEach(address => {
-                const isValid = BitcoinMessage.verify(message, address, signature.toString('base64'));
+                const isValid = BitcoinMessage.verify(message, address, toBase64(signature));
                 expect(isValid).to.equal(address === testCase.address); // Signature is valid if address equals to the test case address
             })
         });
@@ -171,9 +172,9 @@ describe('BitcoinMessage.sign and BitcoinMessage.verify Compatibility Test Suite
         // Add one byte at the end
         const signatureTooLong = Buffer.concat([signature, Buffer.from([0x01])]);
 
-        const isValidTooShort = BitcoinMessage.verify(message, address, signatureTooShort.toString('base64'));
+        const isValidTooShort = BitcoinMessage.verify(message, address, toBase64(signatureTooShort));
         expect(isValidTooShort).to.be.false;
-        const isValidTooLong = BitcoinMessage.verify(message, address, signatureTooLong.toString('base64'));
+        const isValidTooLong = BitcoinMessage.verify(message, address, toBase64(signatureTooLong));
         expect(isValidTooLong).to.be.false;
     });
 
@@ -184,7 +185,7 @@ describe('BitcoinMessage.sign and BitcoinMessage.verify Compatibility Test Suite
         // Corrupt one byte
         signature[10] = signature[10] ^ 0xFF; 
 
-        const isValid = BitcoinMessage.verify(message, address, signature.toString('base64'));
+        const isValid = BitcoinMessage.verify(message, address, toBase64(signature));
         expect(isValid).to.be.false;
     });
 
@@ -192,7 +193,7 @@ describe('BitcoinMessage.sign and BitcoinMessage.verify Compatibility Test Suite
         const address = bitcoin.payments.p2pkh({ pubkey: publicKey }).address!;
         let signature = BitcoinMessage.sign(message, privateKey, true);
         
-        const isValid = BitcoinMessage.verify(message, `${address}1`, signature.toString('base64'));
+        const isValid = BitcoinMessage.verify(message, `${address}1`, toBase64(signature));
         expect(isValid).to.be.false;
     });
 
@@ -203,7 +204,7 @@ describe('BitcoinMessage.sign and BitcoinMessage.verify Compatibility Test Suite
         // Add 4 to the header bit
         // This would make it invalid in BIP-137 standard (header = 44; recId = 5)
         signature[0] += 4;
-        const isValid = BitcoinMessage.verify(message, address, signature.toString('base64'));
+        const isValid = BitcoinMessage.verify(message, address, toBase64(signature));
         expect(isValid).to.be.false;
     });
 
@@ -214,7 +215,7 @@ describe('BitcoinMessage.sign and BitcoinMessage.verify Compatibility Test Suite
         // Subtract 4 to the header bit
         // This would make it invalid in BIP-137 standard (header = 24; recId = -3)
         signature[0] -= 4;
-        const isValid = BitcoinMessage.verify(message, address, signature.toString('base64'));
+        const isValid = BitcoinMessage.verify(message, address, toBase64(signature));
         expect(isValid).to.be.false;
     });
 
@@ -223,7 +224,7 @@ describe('BitcoinMessage.sign and BitcoinMessage.verify Compatibility Test Suite
         let signature = BitcoinMessage.sign(message, privateKey, true);
         
         expect(() => {
-            BitcoinMessage.verify(({ whoami: 'def only a string/buffer' } as any), address, signature.toString('base64'))
+            BitcoinMessage.verify(({ whoami: 'def only a string/buffer' } as any), address, toBase64(signature))
         }).to.throw();
     });
     
@@ -235,7 +236,7 @@ describe('BitcoinMessage.sign and BitcoinMessage.verify Compatibility Test Suite
         const signature = BitcoinMessage.sign(message, privateKey, true);
         
         // Auto-detect network in verify()
-        const isValid = BitcoinMessage.verify(message, address, signature.toString('base64'));
+        const isValid = BitcoinMessage.verify(message, address, toBase64(signature));
         expect(isValid).to.be.true;
     });
 
@@ -247,7 +248,7 @@ describe('BitcoinMessage.sign and BitcoinMessage.verify Compatibility Test Suite
         const signature = BitcoinMessage.sign(message, privateKey, true);
         
         // Auto-detect network in verify()
-        const isValid = BitcoinMessage.verify(message, address, signature.toString('base64'));
+        const isValid = BitcoinMessage.verify(message, address, toBase64(signature));
         expect(isValid).to.be.true;
     });
 
@@ -322,7 +323,7 @@ describe('BitcoinMessage.magicHash', () => {
         
         const actual = BitcoinMessage.magicHash(message);
         
-        expect(actual.toString('hex')).to.equal(expectedHex);
+        expect(Buffer.from(actual).toString('hex')).to.equal(expectedHex);
     });
 
 });

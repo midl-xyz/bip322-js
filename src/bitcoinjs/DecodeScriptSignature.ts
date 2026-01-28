@@ -1,32 +1,36 @@
+import { concatBytes } from '@noble/hashes/utils.js';
+
 interface ScriptSignature {
-    signature: Buffer;
+    signature: Uint8Array;
     hashType: number;
 }
 
 // Taken from https://github.com/bitcoinjs/bitcoinjs-lib/blob/5d2ff1c61165932e2814d5f37630e6720168561c/ts_src/script_signature.ts#L29
-export function decodeScriptSignature(buffer: Buffer): ScriptSignature {
-    const hashType = buffer.readUInt8(buffer.length - 1);
+export function decodeScriptSignature(buffer: Uint8Array): ScriptSignature {
+    const hashType = buffer[buffer.length - 1];
     const hashTypeMod = hashType & ~0x80;
     if (hashTypeMod <= 0 || hashTypeMod >= 4)
         throw new Error('Invalid hashType ' + hashType);
 
-    const decoded = decode2(buffer.slice(0, -1));
+    const decoded = decode2(buffer.subarray(0, -1));
     const r = fromDER(decoded.r);
     const s = fromDER(decoded.s);
-    const signature = Buffer.concat([r, s], 64);
+    const signature = concatBytes(r, s);
 
     return { signature, hashType };
 }
 
-function fromDER(x: Buffer): Buffer {
-    if (x[0] === 0x00) x = x.slice(1);
-    const buffer = Buffer.alloc(32, 0);
-    const bstart = Math.max(0, 32 - x.length);
-    x.copy(buffer, bstart);
+function fromDER(x: Uint8Array): Uint8Array {
+    let data = x;
+    if (data[0] === 0x00) data = data.subarray(1);
+    const buffer = new Uint8Array(32);
+    const trimmed = data.length > 32 ? data.subarray(data.length - 32) : data;
+    const bstart = 32 - trimmed.length;
+    buffer.set(trimmed, bstart);
     return buffer;
 }
 
-function decode2(buffer: Buffer) {
+function decode2(buffer: Uint8Array) {
     if (buffer.length < 8) throw new Error('DER sequence length is too short');
     if (buffer.length > 72) throw new Error('DER sequence length is too long');
     if (buffer[0] !== 0x30) throw new Error('Expected DER sequence');
@@ -48,7 +52,7 @@ function decode2(buffer: Buffer) {
         throw new Error('S value excessively padded');
     // non-BIP66 - extract R, S values
     return {
-        r: buffer.slice(4, 4 + lenR),
-        s: buffer.slice(6 + lenR),
+        r: buffer.subarray(4, 4 + lenR),
+        s: buffer.subarray(6 + lenR),
     };
 }
