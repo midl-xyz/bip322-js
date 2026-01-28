@@ -373,7 +373,7 @@ describe('Verifier Test', () => {
         // Tweak the private key for signing, since the output and address uses tweaked key
         // Reference: https://github.com/bitcoinjs/bitcoinjs-lib/blob/1a9119b53bcea4b83a6aa8b948f0e6370209b1b4/test/integration/taproot.spec.ts#L55
         const testPrivateKeyTweaked = testPrivateKey.tweak(
-            bitcoin.crypto.taggedHash('TapTweak', testPrivateKey.publicKey.subarray(1, 33))
+            Buffer.from(bitcoin.crypto.taggedHash('TapTweak', testPrivateKey.publicKey.subarray(1, 33)))
         );
         // Obtain the script public key
         const scriptPubKey = bitcoin.payments.p2tr({
@@ -504,7 +504,7 @@ describe('Verifier Test', () => {
         // Tweak the private key for signing, since the output and address uses tweaked key
         // Reference: https://github.com/bitcoinjs/bitcoinjs-lib/blob/1a9119b53bcea4b83a6aa8b948f0e6370209b1b4/test/integration/taproot.spec.ts#L55
         const testPrivateKeyTweaked = testPrivateKey.tweak(
-            bitcoin.crypto.taggedHash('TapTweak', testPrivateKey.publicKey.subarray(1, 33))
+            Buffer.from(bitcoin.crypto.taggedHash('TapTweak', testPrivateKey.publicKey.subarray(1, 33)))
         );
         // Obtain the script public key
         const scriptPubKey = bitcoin.payments.p2tr({
