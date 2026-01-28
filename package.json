@@ -1,11 +1,11 @@
 {
-    "name": "bip322-js",
+    "name": "@midl/bip322-js",
     "version": "3.0.0",
     "description": "A Javascript library that provides utility functions related to the BIP-322 signature scheme",
     "main": "dist/index.js",
     "types": "dist/index.d.ts",
     "scripts": {
-        "build": "tsc",
+        "build": "tsc -p tsconfig.build.json",
         "doc": "typedoc src/index.ts",
         "prepack": "npm run build",
         "test": "ts-mocha 'test/**/*.test.ts'",
@@ -45,7 +45,7 @@
     "dependencies": {
         "@bitcoinerlab/secp256k1": "^1.2.0",
         "@noble/curves": "^2.0.1",
-        "bitcoinjs-lib": "^6.1.7",
+        "bitcoinjs-lib": "^7.0.1",
         "ecpair": "^2.1.0",
         "fast-sha256": "^1.3.0"
     }

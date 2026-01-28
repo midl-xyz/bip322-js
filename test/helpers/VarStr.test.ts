@@ -15,7 +15,7 @@ describe('VarStr Test', () => {
         const toEncode = 'Hello World';
         const toEncodeBuffer = Buffer.from(toEncode, 'ascii');
         const encodedVarStr = VarStr.encode(toEncodeBuffer);
-        expect(encodedVarStr).to.equalBytes([toEncode.length].concat(...toEncodeBuffer));
+        expect(encodedVarStr).to.equalBytes([toEncode.length].concat(Array.from(toEncodeBuffer)));
         const decodedStr = VarStr.decode(encodedVarStr).toString('ascii');
         expect(decodedStr).to.equal(toEncode);
     });

@@ -166,7 +166,10 @@ class BitcoinMessage {
         }
 
         // 5. Compare the Scripts
-        return payment.output.equals(targetScript);
+        if (!payment.output) {
+            return false;
+        }
+        return Buffer.from(payment.output).equals(targetScript);
     }
 
     /**
@@ -205,7 +208,7 @@ class BitcoinMessage {
         const candidates = [networks.bitcoin, networks.testnet, networks.regtest];
         for (const network of candidates) {
             try {
-                return bjsAddress.toOutputScript(address, network);
+                return Buffer.from(bjsAddress.toOutputScript(address, network));
             } 
             catch (e) {
                 // Continue to next network if this one mismatches

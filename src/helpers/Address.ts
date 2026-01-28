@@ -140,42 +140,62 @@ class Address {
     public static convertAdressToScriptPubkey(address: string) {
         if (address[0] === '1' || address[0] === 'm' || address[0] === 'n') {
             // P2PKH address
-            return bitcoin.payments.p2pkh({
+            const output = bitcoin.payments.p2pkh({
                 address: address,
                 network: this.getNetworkFromAddess(address)
-            }).output as Buffer;
+            }).output;
+            if (!output) {
+                throw new Error("Unable to derive scriptPubKey for P2PKH address.");
+            }
+            return Buffer.from(output);
         }
         else if (address[0] === '3' || address[0] === '2') {
             // P2SH address
-            return bitcoin.payments.p2sh({
+            const output = bitcoin.payments.p2sh({
                 address: address,
                 network: this.getNetworkFromAddess(address)
-            }).output as Buffer;
+            }).output;
+            if (!output) {
+                throw new Error("Unable to derive scriptPubKey for P2SH address.");
+            }
+            return Buffer.from(output);
         }
         else if (/^(bc1q|tb1q|bcrt1q)/.test(address)) {
             // P2WPKH or P2WSH address
             if (address.length === 42 || (address.includes('bcrt1q') && address.length === 44)) {
                 // P2WPKH address
-                return bitcoin.payments.p2wpkh({
+                const output = bitcoin.payments.p2wpkh({
                     address: address,
                     network: this.getNetworkFromAddess(address)
-                }).output as Buffer;
+                }).output;
+                if (!output) {
+                    throw new Error("Unable to derive scriptPubKey for P2WPKH address.");
+                }
+                return Buffer.from(output);
             }
             else if (address.length === 62 || (address.includes('bcrt1q') && address.length === 64)) {
                 // P2WSH address
-                return bitcoin.payments.p2wsh({
+                const output = bitcoin.payments.p2wsh({
                     address: address,
                     network: this.getNetworkFromAddess(address)
-                }).output as Buffer;
+                }).output;
+                if (!output) {
+                    throw new Error("Unable to derive scriptPubKey for P2WSH address.");
+                }
+                return Buffer.from(output);
             }
         }
         else if (/^(bc1p|tb1p|bcrt1p)/.test(address)) {
             if (address.length === 62 || (address.includes('bcrt1p') && address.length === 64)) {
                 // P2TR address
-                return bitcoin.payments.p2tr({
+                const output = bitcoin.payments.p2tr({
                     address: address,
                     network: this.getNetworkFromAddess(address)
-                }).output as Buffer;
+                }).output;
+                if (!output) {
+                    throw new Error("Unable to derive scriptPubKey for P2TR address.");
+                }
+                return Buffer.from(output);
             }
         }
         throw new Error("Unknown address type");

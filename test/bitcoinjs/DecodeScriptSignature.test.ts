@@ -2,7 +2,17 @@
 import { expect } from 'chai';
 
 // Import test data
-import * as fixtures from './signature.json';
+import { readFileSync } from 'node:fs';
+import path from 'node:path';
+
+type ScriptSignatureFixture = {
+    valid: Array<{ hex: string; raw: { r: string; s: string }; hashType: number }>;
+    invalid: Array<{ hex: string; exception: string }>;
+};
+
+const fixtures = JSON.parse(
+    readFileSync(path.join(__dirname, 'signature.json'), 'utf8')
+) as ScriptSignatureFixture;
 
 // Import module to be tested
 import { decodeScriptSignature } from '../../src/bitcoinjs';
